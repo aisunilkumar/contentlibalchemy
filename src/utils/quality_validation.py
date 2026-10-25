@@ -5,7 +5,6 @@ from dataclasses import asdict
 
 from pydantic import BaseModel, Field
 
-from src.agents import prompts
 from src.core.brand import BrandProfile, brand_prompt, profile_from_state, voice_checks
 from src.core.config import settings
 from src.core.deps import get_services
@@ -17,6 +16,23 @@ from src.utils.content_optimization import (count_words, extract_hashtags, first
                                             strip_markdown)
 from src.utils.seo import faq_pairs, heading_hierarchy_ok, keyword_density
 from src.workflow.node_utils import resilient
+
+JUDGE = """You are a strict content editor. Score the {kind} below from 0 to 10 on each dimension and give concrete fixes.
+seo: keyword use, structure, scannability (for LinkedIn: hook strength, formatting, hashtag strategy)
+voice: match to the brand voice below
+accuracy: claims grounded in the research, nothing invented
+readability: clarity, flow, no filler
+engagement: hook, value, call to action
+feedback: 2-5 specific, actionable fixes in one string.
+
+BRAND VOICE:
+{brand}
+
+RESEARCH SUMMARY:
+{research}
+
+{kind_upper}:
+{content}"""
 
 __all__ = ["Check", "Judge", "blog_checks", "linkedin_checks", "evaluate", "quality_node", "rescore_deterministic"]
 
@@ -103,7 +119,7 @@ def evaluate(kind: str, content: dict, state: dict) -> dict:
     fixes = [f"- {c.detail}" for c in checks if not c.passed]
     llm, judge_feedback, judge_error = None, "", None
     try:
-        j = svc.structured(Judge, [{"role": "user", "content": prompts.JUDGE.format(
+        j = svc.structured(Judge, [{"role": "user", "content": JUDGE.format(
             kind="blog post" if kind == "blog" else "LinkedIn post", kind_upper=kind.upper(),
             brand=brand_prompt(profile, kind), research=(research.get("summary") or "(none)")[:2500],
             content=text[:9000])}], tier="cheap")

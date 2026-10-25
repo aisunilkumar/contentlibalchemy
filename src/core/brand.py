@@ -1,4 +1,9 @@
-"""Brand profile: one structured source of truth for tone, vocabulary, per-platform rules and visual identity."""
+"""Brand profile: one structured source of truth for tone, vocabulary, per-platform rules and visual identity.
+
+All brand values (name, tone, visual identity, etc.) are owned by config/brand_voice.yaml.
+The Python models define the schema only; no brand-specific strings are hardcoded here.
+"""
+import logging
 import re
 from pathlib import Path
 from typing import Literal
@@ -10,6 +15,8 @@ from src.core.config import settings
 from src.utils.checks import Check
 from src.utils.content_optimization import (EMOJI_RE, avg_sentence_words, count_words, strip_markdown)
 
+log = logging.getLogger(__name__)
+
 
 class PlatformRules(BaseModel):
     max_avg_sentence_words: float = 22
@@ -18,23 +25,23 @@ class PlatformRules(BaseModel):
 
 
 class Visual(BaseModel):
-    style: str = "clean modern editorial illustration with flat shapes and subtle gradients"
-    palette: str = "deep teal and warm amber on a soft neutral background"
-    colors: list[str] = Field(default_factory=lambda: ["#0F766E", "#134E4A", "#F59E0B"])
-    mood: str = "calm, confident, optimistic"
-    avoid: list[str] = Field(default_factory=lambda: ["text", "logos", "real people", "stock-photo cliches"])
+    style: str = ""
+    palette: str = ""
+    colors: list[str] = Field(default_factory=list)
+    mood: str = ""
+    avoid: list[str] = Field(default_factory=list)
 
 
 class BrandProfile(BaseModel):
-    name: str = "Your Brand"
-    tone: str = "Clear, friendly and professional."
-    persona: str = "A knowledgeable colleague."
+    name: str = ""
+    tone: str = ""
+    persona: str = ""
     pov: Literal["second_person", "first_person_plural", "third_person"] = "second_person"
     use: list[str] = Field(default_factory=list)
     avoid: list[str] = Field(default_factory=list)
     avoid_phrases: list[str] = Field(default_factory=list)
     preferred_terms: list[str] = Field(default_factory=list)
-    cta_style: str = "Invite a concrete next step."
+    cta_style: str = ""
     sample: str = ""
     reading_ease_min: float = 40
     platforms: dict[str, PlatformRules] = Field(default_factory=lambda: {
@@ -58,7 +65,11 @@ def parse_brand_yaml(text: str) -> BrandProfile:
 
 def load_brand_profile(path: str | None = None) -> BrandProfile:
     p = Path(path or settings.brand_voice_path)
-    return parse_brand_yaml(p.read_text()) if p.exists() else BrandProfile()
+    if p.exists():
+        return parse_brand_yaml(p.read_text())
+    log.warning("Brand voice file not found at %s — using empty defaults. "
+                "Create config/brand_voice.yaml to configure your brand.", p)
+    return BrandProfile()
 
 
 def profile_from_state(state: dict) -> BrandProfile:

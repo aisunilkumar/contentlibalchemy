@@ -2,12 +2,33 @@
 cited synthesis -> citation validation (renumber by first use, drop refs that match no source)."""
 from concurrent.futures import ThreadPoolExecutor
 
-from src.agents import prompts
 from src.core.config import settings
 from src.core.deps import get_services
 from src.utils.citations import (citation_report, rank_sources, renumber_citations, strip_sources_section)
 from src.utils.content_optimization import parse_lines
 from src.workflow.node_utils import resilient
+
+QUERY_GEN = ("Give 4 diverse web search queries, one per line, no numbering, to research: {topic}. "
+             "Cover: overview, recent developments, statistics or data, and challenges or criticism.")
+
+RESEARCH_SYNTH = """Write a research brief (450-700 words, Markdown) on: {topic}
+Structure it with these H2 sections: Key findings, Data points, Conflicting evidence, Gaps and caveats.
+CITATION RULES (strict):
+- Use ONLY the material below. Never invent facts, numbers, quotes or sources.
+- Cite inline as [n] using the numbers in the source list. Every paragraph or bullet with a factual claim needs a citation.
+- Draw on at least {min_cites} different sources when that many are available.
+- Where sources disagree, say so and cite both. If something is not supported, put it under "Gaps and caveats".
+- Do NOT write a Sources section; it is generated automatically.
+
+SEARCH-PROVIDER NOTES (context only; not citable):
+{notes}
+
+NUMBERED SOURCES:
+{sources}"""
+
+RESEARCH_NO_SOURCES = ("Write a short background brief (250-400 words, Markdown) on: {topic}. "
+                       "No live sources are available, so avoid specific statistics and mark anything needing verification with [VERIFY]. "
+                       "Do not include citations.")
 
 
 def _fallback(state, exc):
@@ -20,7 +41,7 @@ def research_agent(state):
     svc, topic, errors = get_services(), state["topic"], []
 
     try:  # 1) diverse sub-queries (cheap, deterministic -> cached)
-        raw = svc.complete([{"role": "user", "content": prompts.QUERY_GEN.format(topic=topic)}],
+        raw = svc.complete([{"role": "user", "content": QUERY_GEN.format(topic=topic)}],
                            tier="cheap", temperature=0, max_tokens=200).text
         queries = parse_lines(raw, 4)
     except Exception as exc:  # noqa: BLE001
@@ -50,7 +71,7 @@ def research_agent(state):
     if ranked or notes:
         src_txt = "\n".join(f"[{i}] {s.get('title') or s['link']} - {s.get('snippet', '')} ({s['link']})"
                             for i, s in enumerate(ranked, 1)) or "(none)"
-        draft = svc.complete([{"role": "user", "content": prompts.RESEARCH_SYNTH.format(
+        draft = svc.complete([{"role": "user", "content": RESEARCH_SYNTH.format(
             topic=topic, notes=notes[:6000] or "(none)", sources=src_txt, min_cites=min(5, max(len(ranked), 1)))}],
             tier="smart", temperature=0.2, max_tokens=1300).text
         summary, used, invalid = renumber_citations(strip_sources_section(draft), ranked)
@@ -61,7 +82,7 @@ def research_agent(state):
         unverified = not ranked
         errors += [f"research: {f}" for f in report["flags"]]
     else:
-        summary = svc.complete([{"role": "user", "content": prompts.RESEARCH_NO_SOURCES.format(topic=topic)}],
+        summary = svc.complete([{"role": "user", "content": RESEARCH_NO_SOURCES.format(topic=topic)}],
                                tier="smart", temperature=0.2, max_tokens=700).text
         used, others, unverified = [], [], True
         report = citation_report(summary, [], 0, [])

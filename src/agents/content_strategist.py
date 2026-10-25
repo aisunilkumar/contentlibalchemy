@@ -1,5 +1,4 @@
 """Agent 6: Content Strategist. Assembles everything into the dashboard payload + chat reply."""
-from src.agents import prompts
 from src.core.brand import profile_from_state, voice_report
 from src.core.deps import get_services
 from src.utils.content_optimization import strip_markdown
@@ -9,6 +8,10 @@ from src.utils.diffing import change_stats, text_diff
 from src.utils.export_tools import derive_blog_outputs, research_report_md
 from src.utils.messages import to_chat
 from src.workflow.node_utils import resilient
+
+CHAT_SYSTEM = ("You are ContentAlchemy's assistant. You help create research reports, SEO blog posts, LinkedIn posts and "
+               "images, and you can run a full campaign on a topic. Answer briefly. If the user's request is unclear, "
+               "ask which topic and format they want.")
 
 
 def next_steps(state) -> list[str]:
@@ -103,7 +106,7 @@ def content_strategist(state):
         reply = state.get("note") or ""
         if not reply:
             try:
-                reply = svc.complete([{"role": "system", "content": prompts.CHAT_SYSTEM},
+                reply = svc.complete([{"role": "system", "content": CHAT_SYSTEM},
                                       *to_chat(state.get("messages", []))[-6:]],
                                      tier="cheap", temperature=0.3, max_tokens=250).text
             except Exception:  # noqa: BLE001

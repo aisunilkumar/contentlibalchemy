@@ -1,7 +1,6 @@
 """Agent 5: Image Generation.
 Prompt engineering: structured brief -> brand-consistent prompt -> lint.
 Fallback ladder: provider chain -> simplified prompt retry -> branded SVG card (always available)."""
-from src.agents import prompts
 from src.core.brand import profile_from_state
 from src.core.deps import get_services
 from src.core.history import entries, make_entry
@@ -10,6 +9,13 @@ from src.utils.content_optimization import trim_at_word
 from src.utils.visuals import (ImageBrief, assemble_image_prompt, clean_alt_text, lint_image_prompt, make_svg_card,
                                simplify_image_prompt, template_brief)
 from src.workflow.node_utils import resilient
+
+IMAGE_BRIEF = """Create a visual brief for an AI image generator.
+TOPIC: {topic}
+CONTENT CONTEXT: {context}
+FORMAT: {aspect} image for a {platform}
+BRAND VISUAL IDENTITY (will be applied automatically; do not contradict): style {style}; palette {palette}; mood {mood}; avoid {avoid}.{request}
+Return JSON fields: subject (one concrete, symbolic scene that represents the idea; no text, no people's faces), style, composition (camera angle, focal point, negative space), palette, lighting, mood, alt_text (max 125 characters, describes what is shown for screen readers, does not start with "image of")."""
 
 
 def _fallback(state, exc):
@@ -35,7 +41,7 @@ def image_agent(state):
 
     # 1) structured brief (cheap LLM), with a deterministic template as fallback
     try:
-        brief = svc.structured(ImageBrief, [{"role": "user", "content": prompts.IMAGE_BRIEF.format(
+        brief = svc.structured(ImageBrief, [{"role": "user", "content": IMAGE_BRIEF.format(
             topic=topic, context=context, aspect=aspect, platform=platform, style=v.style, palette=v.palette,
             mood=v.mood, avoid=", ".join(v.avoid), request=request)}], tier="cheap", max_tokens=500)
     except Exception as exc:  # noqa: BLE001

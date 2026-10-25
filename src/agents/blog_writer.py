@@ -2,13 +2,48 @@
 Post-processing: citations are validated, renumbered and the Sources section is generated from real URLs."""
 from pydantic import BaseModel, Field
 
-from src.agents import prompts
 from src.core.brand import brand_prompt, profile_from_state
 from src.core.deps import get_services
 from src.utils.citations import finalize_citations
 from src.utils.content_optimization import trim_at_word
 from src.utils.seo import slugify
 from src.workflow.node_utils import resilient
+
+SEO_PLAN = """Create an SEO plan for a blog post on: {topic}
+Return: a primary keyword (2-4 words, what people actually search), 3-5 secondary keywords, a title (max 60 characters, starts with or contains the primary keyword), a meta description (110-155 characters, contains the primary keyword and a clear benefit), and a 5-6 item outline of H2 headings (at least one containing the primary or a secondary keyword)."""
+
+BLOG_BODY = """Write the full blog post in Markdown.
+
+TOPIC: {topic}
+TITLE (use as the single H1): {title}
+PRIMARY KEYWORD: {primary_keyword} (use naturally about once per 150 words; first 100 words; one H2; the conclusion; never stuff)
+SECONDARY KEYWORDS: {secondary} (work most of them in naturally)
+OUTLINE (H2 sections): {outline}
+
+BRAND VOICE (follow exactly; these rules are checked automatically):
+{brand}
+
+RESEARCH (ground every factual claim here; cite as [n] using these numbers; never invent statistics):
+{research}
+
+STRUCTURE RULES: exactly one H1; 4-6 H2 sections; use H3 only under an H2 (never skip heading levels); 800-1200 words; a hook intro that states the benefit; short paragraphs; two [INTERNAL LINK: anchor text] placeholders.
+FAQ RULES: an H2 titled "FAQ" followed by 3 questions, each as an H3 ending with "?" and a 1-3 sentence answer underneath.
+End with a conclusion containing a call to action. Do NOT write a Sources section; it is added automatically.{unverified}
+{revision}"""
+
+USER_EDIT_BLOCK = """
+USER REQUEST (apply exactly this change; keep everything else the same: structure, facts, citations, keywords, brand voice):
+{feedback}
+
+CURRENT DRAFT (this is the latest version, including any edits the user made by hand):
+{previous}"""
+
+REVISION_BLOCK = """
+REVISION FEEDBACK (fix every point, keep what already works):
+{feedback}
+
+PREVIOUS DRAFT:
+{previous}"""
 
 
 class SeoPlan(BaseModel):
@@ -35,7 +70,7 @@ def revision_block(state, kind) -> tuple[str, bool]:
     loop = bool(q.get("revise"))
     fb = q.get("feedback") if loop else state.get("instruction", "")
     if fb and previous:
-        block = prompts.REVISION_BLOCK if loop else prompts.USER_EDIT_BLOCK
+        block = REVISION_BLOCK if loop else USER_EDIT_BLOCK
         return block.format(feedback=fb, previous=previous), loop
     return "", False
 
@@ -56,13 +91,13 @@ def blog_writer(state):
                        primary_keyword=existing.get("primary_keyword", topic),
                        secondary_keywords=existing.get("keywords", []), outline=existing.get("outline", []))
     else:
-        plan = svc.structured(SeoPlan, [{"role": "user", "content": prompts.SEO_PLAN.format(topic=topic)}], tier="cheap")
+        plan = svc.structured(SeoPlan, [{"role": "user", "content": SEO_PLAN.format(topic=topic)}], tier="cheap")
     title, meta = trim_at_word(plan.title, 60), trim_at_word(plan.meta_description, 160)
 
     research = state.get("research") or {}
     unverified = ("\nNo verified sources exist: avoid specific statistics and mark claims needing checks with [VERIFY]."
                   if research.get("unverified") else "")
-    body = svc.complete([{"role": "user", "content": prompts.BLOG_BODY.format(
+    body = svc.complete([{"role": "user", "content": BLOG_BODY.format(
         topic=topic, title=title, primary_keyword=plan.primary_keyword,
         secondary=", ".join(plan.secondary_keywords), outline="; ".join(plan.outline),
         brand=brand_prompt(profile, "blog"), research=research_context(state),
