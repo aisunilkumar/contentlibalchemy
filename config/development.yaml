@@ -1,0 +1,9 @@
+quality_threshold: 7.5
+max_revisions: 2
+min_blog_words: 600
+det_weight: 0.4        # share of the final score from deterministic checks
+history_window: 10
+max_sources: 12
+search_fanout: 2
+linkedin_fold_chars: 210
+max_failed_checks: 1

@@ -1,0 +1,36 @@
+# One brand profile drives every format: prompts, automatic checks and the image generator.
+name: Acme Analytics
+tone: Clear, confident and practical. A friendly expert, never salesy.
+persona: A senior practitioner explaining things to a smart colleague.
+pov: second_person              # second_person | first_person_plural | third_person
+use:
+  - active voice and concrete examples
+  - short sentences and plain words
+  - address the reader as "you"
+avoid:
+  - hype and unverifiable superlatives
+  - jargon without a one-line explanation
+avoid_phrases:                  # hard rule: checked automatically in every format
+  - game-changer
+  - revolutionary
+  - unlock the power
+  - in today's fast-paced world
+  - cutting-edge
+  - leverage synergies
+preferred_terms:                # use these instead of synonyms
+  - cloud spend
+  - team
+cta_style: Invite a concrete next step or a reply. Never pushy.
+sample: |
+  Most teams don't have a cloud cost problem. They have a visibility problem.
+  Here is a simple weekly habit that fixes it.
+reading_ease_min: 40            # Flesch reading ease; higher = easier
+platforms:
+  blog:     {max_avg_sentence_words: 22, max_emojis: 0, max_exclamations: 1}
+  linkedin: {max_avg_sentence_words: 16, max_emojis: 2, max_exclamations: 1}
+visual:
+  style: clean modern editorial illustration with flat shapes and subtle gradients
+  palette: deep teal and warm amber on a soft neutral background
+  colors: ["#0F766E", "#134E4A", "#F59E0B"]   # hex; used for the SVG fallback card too
+  mood: calm, confident, optimistic
+  avoid: [stock-photo clichés, handshakes, glowing brains, robots, text, logos, real people]

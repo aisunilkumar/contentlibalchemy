@@ -1,0 +1,24 @@
+budget_usd: 5.00            # hard stop per process run
+cache_ttl_seconds: 3600
+retries: 2
+backoff_seconds: 1.0
+
+# Order = priority. Providers whose API key is missing are skipped automatically.
+chains:
+  llm_smart: [openai_gpt4o, anthropic_sonnet, gemini_flash, openai_mini]
+  llm_cheap: [openai_mini, gemini_flash, openai_gpt4o]
+  search:    [serpapi, perplexity_sonar, openai_websearch]
+  image:     [openai_image]   # the image agent owns the last fallbacks: simplified prompt -> branded SVG card
+
+providers:
+  # Prices are USD per 1M tokens: PLACEHOLDERS - verify on each provider's pricing page.
+  openai_gpt4o:     {type: openai_llm, key_env: OPENAI_API_KEY, model: gpt-4o,      rpm: 60,  price_in: 2.50, price_out: 10.00}
+  openai_mini:      {type: openai_llm, key_env: OPENAI_API_KEY, model: gpt-4o-mini, rpm: 120, price_in: 0.15, price_out: 0.60}
+  anthropic_sonnet: {type: anthropic_llm, key_env: ANTHROPIC_API_KEY, model: claude-sonnet-5-5, rpm: 50, price_in: 3.00, price_out: 15.00}
+  gemini_flash:     {type: gemini_llm, key_env: GEMINI_API_KEY, model: gemini-2.5-flash, rpm: 60, price_in: 0.30, price_out: 2.50}
+
+  serpapi:          {type: serp, key_env: SERPAPI_API_KEY, rpm: 30}
+  perplexity_sonar: {type: perplexity, key_env: PERPLEXITY_API_KEY, model: sonar, rpm: 50}
+  openai_websearch: {type: openai_websearch, key_env: OPENAI_API_KEY, model: gpt-4o, rpm: 30, tool_type: web_search_preview}
+
+  openai_image:     {type: openai_image, key_env: OPENAI_API_KEY, model: dall-e-3, rpm: 5}   # or gpt-image-1
