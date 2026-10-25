@@ -474,17 +474,17 @@ config/
 ```mermaid
 flowchart TD
   S([START]) --> R[router<br/>Query Handler]
-  R -->|plan[step]| RS[research]
-  R -->|plan[step]| B[blog]
-  R -->|plan[step]| L[linkedin]
-  R -->|plan[step]| I[image]
+  R -->|"plan[step]"| RS[research]
+  R -->|"plan[step]"| B[blog]
+  R -->|"plan[step]"| L[linkedin]
+  R -->|"plan[step]"| I[image]
   R -->|empty plan / chat| ST[strategist]
-  RS -->|plan[step]| B & L & I & ST
+  RS -->|"plan[step]"| B & L & I & ST
   B --> Q{quality}
   L --> Q
-  Q -->|score < threshold and revisions < max| B & L
-  Q -->|accepted: step+1| B & L & I & ST
-  I -->|plan[step]| ST
+  Q -->|"score < threshold and revisions < max"| B & L
+  Q -->|"accepted: step+1"| B & L & I & ST
+  I -->|"plan[step]"| ST
   ST --> E([END])
 ```
 
